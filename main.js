@@ -3988,6 +3988,7 @@ function createMap(newLevel, nameOverride, locationOverride, lootOverride, sizeO
         name: mapName[0],
 		location: (locationOverride) ? locationOverride : mapName[1],
         clears: 0,
+		bestRps:0,
         level: world,
         difficulty: mapDifficulty,
         size: (sizeOverride) ? sizeOverride : Math.floor(getRandomMapValue("size")),
@@ -4285,7 +4286,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 7,
 		cache: true,
 		onCompletion: function (){
-			cacheReward("random", 20, this.name);
+			return cacheReward("random", 20, this.name);
 		},
 		abv: "LC"
 	},
@@ -4296,7 +4297,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("food", 10, this.name);
+			return cacheReward("food", 10, this.name);
 		},
 		abv: "SSC"
 	},
@@ -4307,7 +4308,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("wood", 10, this.name);
+			return cacheReward("wood", 10, this.name);
 		},
 		abv: "SWC"
 	},
@@ -4318,7 +4319,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("metal", 10, this.name);
+			return cacheReward("metal", 10, this.name);
 		},
 		abv: "SMC"
 	},
@@ -4336,7 +4337,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 14,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("random", 40, this.name);
+			return cacheReward("random", 40, this.name);
 		},
 		abv: "HC"
 	},
@@ -4347,7 +4348,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("food", 20, this.name);
+			return cacheReward("food", 20, this.name);
 		},
 		abv: "LSC"
 	},
@@ -4358,7 +4359,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("wood", 20, this.name);
+			return cacheReward("wood", 20, this.name);
 		},
 		abv: "LWC"
 	},
@@ -4369,7 +4370,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			cacheReward("metal", 20, this.name);
+			return cacheReward("metal", 20, this.name);
 		},
 		abv: "LMC"
 	}
@@ -4384,13 +4385,14 @@ function cacheReward(resourceName, time, cacheName){
 	var amt = simpleSeconds(resourceName, time);
 	amt = scaleToCurrentMap(amt, false, !game.global.canScryCache);
 	addResCheckMax(resourceName, amt, null, null, true);
-	message("You open the " + cacheName + " at the end of the map to find " + prettify(amt) + " " + resourceName + "!", "Loot", "*dice", null, "cache");
+	message("You open the " + cacheName + " at the end of the map to find " + prettify(amt) + " " + resourceName + "! ("+prettify(amt/((getGameTime() - game.global.mapStarted) / 1000))+"/s)", "Loot", "*dice", null, "cache");
 	if (Fluffy.isRewardActive("lucky")){
 		if (Math.floor(Math.random() * 100) < 25) {
 			addResCheckMax(resourceName, amt, null, null, true);
 			message("Fluffy found another " + cacheName + " with another " + prettify(amt) + " " + resourceName + "!", "Loot", "*dice", null, "cache");
 		}
 	}
+	return amt/((getGameTime() - game.global.mapStarted) / 1000);
 }
 
 function updateMapCost(getValue, forceBaseCost){
@@ -11388,6 +11390,7 @@ function fight(makeUp) {
 			var mapObj = getCurrentMapObject();
 			game.stats.mapsCleared.value++;
 			checkAchieve("totalMaps");
+			mapObj.clears ++;
 			var shouldRepeat = (game.global.repeatMap);
 			var mapBonusEarned = 0;
 			if ((currentMapObj.level >= (game.global.world - game.portal.Siphonology.level)) && game.global.mapBonus < 10) mapBonusEarned = 1;
@@ -11398,7 +11401,7 @@ function fight(makeUp) {
 			else if (game.options.menu.repeatUntil.enabled == 2 && allItemsEarned) shouldRepeat = false;
 			else if (game.options.menu.repeatUntil.enabled == 3 && allItemsEarned && (mapBonusReached || mapBonusEarned == 0)) shouldRepeat = false;
 			if (mapObj.bonus && mapSpecialModifierConfig[mapObj.bonus].onCompletion){
-				mapSpecialModifierConfig[mapObj.bonus].onCompletion();
+				mapObj.bestRps = Math.max(mapSpecialModifierConfig[mapObj.bonus].onCompletion(),mapObj.bestRps);
 			}
 			var skip = false;
 			if (isVoid) {

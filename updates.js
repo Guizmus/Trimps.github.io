@@ -1686,7 +1686,8 @@ function getZoneStats(event, update) {
 			textString += " (" + mapSpecialModifierConfig[map.bonus].abv + ")";
 		textString += ", Cell " + (game.global.lastClearedMapCell + 2) + "</td></tr>";
 		textString += '<tr><td><span class="' + getMapIcon(map) + '"></span> ' + ((map.location == "Void") ? voidBuffConfig[game.global.voidBuff].title : getMapIcon(map, true)) + '</td><td><span class="icomoon icon-gift2"></span>' + Math.floor(map.loot * 100) + '%</span> <span class="icomoon icon-cube2"></span>' + map.size + ' <span class="icon icon-warning"></span>' + Math.floor(map.difficulty * 100) + '%</td><td>' + ((map.location == "Void") ? '&nbsp' : ('Items: ' + addSpecials(true, true, map))) + '</td></tr>';
-		textString += "<tr><td colspan='3'>You have been on this map for " + formatMinutesForDescriptions((getGameTime() - game.global.mapStarted) / 1000 / 60) + "</td></tr>";
+		textString += "<tr><td colspan='3'>You have been on this map for " + formatMinutesForDescriptions((getGameTime() - game.global.mapStarted) / 1000 / 60) + "<br/>" +
+			"You have cleared this map a total of "+map.clears+" time"+(map.clears>1 ? "s":"")+"."+(map.bestRps>0?"<br/>Your best run landed "+prettify(map.bestRps)+"/s.": "")+"</td></tr>";
 		var stackedMaps = 0;
 		if (Fluffy.isRewardActive('void')) stackedMaps = countStackedVoidMaps();
 		if (map.location == "Void") textString += "<tr><td colspan='3'>You have " + game.global.totalVoidMaps + " Void Map" + ((game.global.totalVoidMaps == 1) ? "" : "s") + ((stackedMaps) ? " (" + stackedMaps + " stacked)." : "") + "</td></tr>";
