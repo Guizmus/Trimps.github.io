@@ -759,7 +759,15 @@ function load(saveString, autoLoad, fromPf) {
 		if (game.global.freeTalentRespecs < 3) game.global.freeTalentRespecs++;
 	}
 	if (compareVersion([4,12,0], oldStringVersion)){
-		game.global.mapStatCount = 5;
+		game.settings.mapStatCount = 5;
+		game.options.menu['mapStatCount'].enabled = 2;//default to 5 runs for map stats
+	    for (var mapIndex in game.global.mapsOwnedArray) {
+			game.global.mapsOwnedArray[mapIndex].stats = {
+					cacheRewards : [],
+					loot : [],
+					mediumRps : 0,
+			};
+	    }
 	}
 	//End compatibility
 	//Test server only
@@ -2735,6 +2743,10 @@ function getMaxForResource(what){
 	return newMax;
 }
 
+function updateMapStats(reward) {
+	
+}
+
 // Exponentially weighted moving average is less jumpy than a normal
 // moving average, so we can include jestimps.
 // https://en.wikipedia.org/wiki/Moving_average
@@ -4013,7 +4025,11 @@ function createMap(newLevel, nameOverride, locationOverride, lootOverride, sizeO
         name: mapName[0],
 		location: (locationOverride) ? locationOverride : mapName[1],
         clears: 0,
-		bestRps:0,
+		stats:{
+				cacheRewards : [],
+				loot : [],
+				mediumRps : 0,// medium resource per second earned over the last X runs
+		},
         level: world,
         difficulty: mapDifficulty,
         size: (sizeOverride) ? sizeOverride : Math.floor(getRandomMapValue("size")),
@@ -11428,7 +11444,7 @@ function fight(makeUp) {
 			else if (game.options.menu.repeatUntil.enabled == 2 && allItemsEarned) shouldRepeat = false;
 			else if (game.options.menu.repeatUntil.enabled == 3 && allItemsEarned && (mapBonusReached || mapBonusEarned == 0)) shouldRepeat = false;
 			if (mapObj.bonus && mapSpecialModifierConfig[mapObj.bonus].onCompletion){
-				mapObj.bestRps = Math.max(mapSpecialModifierConfig[mapObj.bonus].onCompletion(),mapObj.bestRps);
+				updateMapStats(mapSpecialModifierConfig[mapObj.bonus].onCompletion());
 			}
 			var skip = false;
 			if (isVoid) {

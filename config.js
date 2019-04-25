@@ -1085,6 +1085,41 @@ var toReturn = {
 					tooltipUpdateFunction = "";
 					this.enabled = 0;
 				}
+			},
+			mapStatCount: {
+				enabled: 1,
+				extraTags: "other",
+				description: "You can turn off data statistics for map runs to reduce memory comsumtion, or custumize the number runs to average data from.<br>Toggle this off and on to reset map stats.",
+				titles: ["No Map stats","Map stats : 1 run", "Map stats : 5 runs", "Map stats : 10 runs","Map stats : 20 runs"],
+				onToggle: function() {
+					if (!this.enabled) {
+					    for (var mapIndex in game.global.mapsOwnedArray) {
+							game.global.mapsOwnedArray[mapIndex].stats = {
+									cacheRewards : [],
+									loot : [],
+									mediumRps : 0,
+							};
+					    }
+					}
+					switch (this.enabled) {
+						case 0 : 
+							game.settings.mapStatCount = 0;
+							break;
+						case 1 : 
+							game.settings.mapStatCount = 1;
+							break;
+						case 2 : 
+							game.settings.mapStatCount = 5;
+							break;
+						case 3 : 
+							game.settings.mapStatCount = 10;
+							break;
+						case 4 : 
+							game.settings.mapStatCount = 20;
+							break;
+					}
+					// game.global.mapStatCount
+				}
 			}
 		}
 	},
