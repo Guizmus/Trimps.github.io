@@ -758,6 +758,9 @@ function load(saveString, autoLoad, fromPf) {
 	if (compareVersion([4,11,0], oldStringVersion)){
 		if (game.global.freeTalentRespecs < 3) game.global.freeTalentRespecs++;
 	}
+	if (compareVersion([4,12,0], oldStringVersion)){
+		game.global.mapStatCount = 5;
+	}
 	//End compatibility
 	//Test server only
 
