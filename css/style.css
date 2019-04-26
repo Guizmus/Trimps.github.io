@@ -5146,3 +5146,7 @@ sup{
 .screenReaderPerk{
 	font-size: 0.5em;
 }
+
+.statTable td {
+	font-size : 0.7vw;
+}

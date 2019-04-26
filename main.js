@@ -759,14 +759,13 @@ function load(saveString, autoLoad, fromPf) {
 		if (game.global.freeTalentRespecs < 3) game.global.freeTalentRespecs++;
 	}
 	if (compareVersion([4,12,0], oldStringVersion)){
-		game.settings.mapStatCount = 5;
 		game.options.menu['mapStatCount'].enabled = 2;//default to 5 runs for map stats
 	    for (var mapIndex in game.global.mapsOwnedArray) {
 			game.global.mapsOwnedArray[mapIndex].stats = {
 					cacheRewards : [],
-					loot : [],
-					mediumRps : 0,
+					loot : [{}],
 			};
+			game.global.mapsOwnedArray[mapIndex].totalTimeSpent = 0;
 	    }
 	}
 	//End compatibility
@@ -2681,7 +2680,7 @@ function rewardResource(what, baseAmt, level, checkMapLootScale, givePercentage)
 		addHelium(amt);
 	}
 	else
-		addResCheckMax(what, amt);
+		addResCheckMax(what, amt,null,'loot');
 	if (game.options.menu.useAverages.enabled){
 		addAvg(what, amt);
 	}
@@ -2708,7 +2707,35 @@ function addHelium(amt){
 	checkAchieve("totalHelium");
 }
 
-function addResCheckMax(what, number, noStat, fromGather, nonFilteredLoot) {
+function addResCheckMax(what, number, noStat, origin, nonFilteredLoot) {
+	// origins : loot, reward (zone or map final loot), fluffy, gather, refund
+	switch (origin) {
+		case 'fluffy' :
+			if (game.global.mapsActive)
+				updateMapStats({
+					t: 'loot',
+					v: number,
+					w: what,
+				});
+			break;
+		case 'loot' :
+			if (game.global.mapsActive)
+				updateMapStats({
+					t: 'loot',
+					v: number,
+					w: what,
+				});
+			break;
+		case 'reward' : 
+			if (game.global.mapsActive)
+				updateMapStats({
+					t: 'cache',
+					v: number,
+					w: what,
+				});
+			break;
+		default : break;
+	}
 	var res = game.resources[what];
 	if (nonFilteredLoot && game.options.menu.useAverages.enabled){
 		addAvg(what, number);
@@ -2744,7 +2771,67 @@ function getMaxForResource(what){
 }
 
 function updateMapStats(reward) {
-	
+	if (reward.v == 0)
+		return;
+	var mapObj = getCurrentMapObject();
+	if (game.options.menu['mapStatCount'].enabled) {
+		switch (reward.t) {
+				case 'cache' :
+					delete reward.t;
+					reward.d = getGameTime() - game.global.mapStarted;
+					mapObj.stats.cacheRewards.unshift(reward);
+					mapObj.stats.loot.unshift({});
+					delete mapObj.stats.computed;
+					var numToKeep = game.options.menu['mapStatCount'].numToKeep();
+					while (mapObj.stats.cacheRewards.length > numToKeep) {
+						mapObj.stats.cacheRewards.pop();
+					}
+					while (mapObj.stats.loot.length > numToKeep + 1) {
+						mapObj.stats.loot.pop();
+					}
+					break;
+				case 'loot' : 
+					if (typeof(mapObj.stats.loot[0][reward.w]) === "undefined")
+						mapObj.stats.loot[0][reward.w] = 0;
+					mapObj.stats.loot[0][reward.w] += reward.v;
+					break;
+		}
+	}
+}
+function computeMapStats() { // logic separated to not update if the tooptip isn't showing them
+	var mapObj = getCurrentMapObject();
+	var stats = {
+		cacheRewards :{},
+		loot : {},
+		count : mapObj.stats.cacheRewards.length,
+		w : {},
+	};
+	for (var cacheIndex in mapObj.stats.cacheRewards) {
+		var cache = mapObj.stats.cacheRewards[cacheIndex];
+		if (typeof(stats.cacheRewards[cache.w]) === "undefined")
+			stats.cacheRewards[cache.w] = 0;
+		stats.cacheRewards[cache.w] += cache.v/stats.count;
+		stats.w[cache.w] = true;
+	}
+	for (var lootIndex in mapObj.stats.loot) {
+		if (lootIndex == 0) continue;
+		for (var lootW in mapObj.stats.loot[lootIndex]) {
+			if (typeof(stats.loot[lootW]) === "undefined")
+				stats.loot[lootW] = 0;
+			stats.loot[lootW] += mapObj.stats.loot[lootIndex][lootW]/stats.count;
+			stats.w[lootW] = true;
+		}
+	}
+
+	// stats.w = Object.keys(stats.w);
+	var w = [];
+	var lootTypeOrdered = ["food","wood","metal","science","fragments","gems","helium"];
+	for (var i in lootTypeOrdered) {
+		if (stats.w[lootTypeOrdered[i]])
+			w.push(lootTypeOrdered[i]);
+	}
+	stats.w = w;
+	mapObj.stats.computed = stats;
 }
 
 // Exponentially weighted moving average is less jumpy than a normal
@@ -2906,7 +2993,7 @@ function gather() {
 			var timeToFillElem = document.getElementById(increase + "TimeToFill");
 			if (timeToFillElem) timeToFillElem.textContent = calculateTimeToMax(game.resources[increase], perSec, null, true);
 		}
-		addResCheckMax(increase, amount, null, true);
+		addResCheckMax(increase, amount, null, 'gather');
     }
     if (what === "" || what == "buildings") return;
     if (what == "trimps") {
@@ -3152,7 +3239,7 @@ function refundQueueItem(what) {
 		else
 			refund = thisCostItem * name[1];
 		if (game.portal.Resourceful.level) refund = Math.ceil(refund * (Math.pow(1 - game.portal.Resourceful.modifier, game.portal.Resourceful.level)));
-		addResCheckMax(costItem, parseFloat(refund), true);
+		addResCheckMax(costItem, parseFloat(refund), true,'refund');
     }
 }
 
@@ -4025,10 +4112,10 @@ function createMap(newLevel, nameOverride, locationOverride, lootOverride, sizeO
         name: mapName[0],
 		location: (locationOverride) ? locationOverride : mapName[1],
         clears: 0,
+		totalTimeSpent : 0,
 		stats:{
 				cacheRewards : [],
-				loot : [],
-				mediumRps : 0,// medium resource per second earned over the last X runs
+				loot : [{}],
 		},
         level: world,
         difficulty: mapDifficulty,
@@ -4327,7 +4414,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 7,
 		cache: true,
 		onCompletion: function (){
-			return cacheReward("random", 20, this.name);
+			cacheReward("random", 20, this.name);
 		},
 		abv: "LC"
 	},
@@ -4338,7 +4425,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("food", 10, this.name);
+			cacheReward("food", 10, this.name);
 		},
 		abv: "SSC"
 	},
@@ -4349,7 +4436,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("wood", 10, this.name);
+			cacheReward("wood", 10, this.name);
 		},
 		abv: "SWC"
 	},
@@ -4360,7 +4447,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 10,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("metal", 10, this.name);
+			cacheReward("metal", 10, this.name);
 		},
 		abv: "SMC"
 	},
@@ -4378,7 +4465,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 14,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("random", 40, this.name);
+			cacheReward("random", 40, this.name);
 		},
 		abv: "HC"
 	},
@@ -4389,7 +4476,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("food", 20, this.name);
+			cacheReward("food", 20, this.name);
 		},
 		abv: "LSC"
 	},
@@ -4400,7 +4487,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("wood", 20, this.name);
+			cacheReward("wood", 20, this.name);
 		},
 		abv: "LWC"
 	},
@@ -4411,7 +4498,7 @@ var mapSpecialModifierConfig = {
 		costIncrease: 18,
 		cache: true,
 		onCompletion: function () {
-			return cacheReward("metal", 20, this.name);
+			cacheReward("metal", 20, this.name);
 		},
 		abv: "LMC"
 	}
@@ -4425,15 +4512,14 @@ function cacheReward(resourceName, time, cacheName){
 	}
 	var amt = simpleSeconds(resourceName, time);
 	amt = scaleToCurrentMap(amt, false, !game.global.canScryCache);
-	addResCheckMax(resourceName, amt, null, null, true);
+	addResCheckMax(resourceName, amt, null, 'reward', true);
 	message("You open the " + cacheName + " at the end of the map to find " + prettify(amt) + " " + resourceName + "! ("+prettify(amt/((getGameTime() - game.global.mapStarted) / 1000))+"/s)", "Loot", "*dice", null, "cache");
 	if (Fluffy.isRewardActive("lucky")){
 		if (Math.floor(Math.random() * 100) < 25) {
-			addResCheckMax(resourceName, amt, null, null, true);
+			addResCheckMax(resourceName, amt, null, 'fluffy', true);
 			message("Fluffy found another " + cacheName + " with another " + prettify(amt) + " " + resourceName + "!", "Loot", "*dice", null, "cache");
 		}
 	}
-	return amt/((getGameTime() - game.global.mapStarted) / 1000);
 }
 
 function updateMapCost(getValue, forceBaseCost){
@@ -4612,6 +4698,11 @@ function createVoidMap(forcePrefix, forceSuffix, skipMessage) {
 			name: mapName,
 			location: "Void",
 			clears: 0,
+			totalTimeSpent:0,
+			stats:{
+					cacheRewards : [],
+					loot : [{}],
+			},
 			level: -1,
 			size: profiles[0],
 			loot: (game.singleRunBonuses.goldMaps.owned) ? (profiles[1] + 1) : profiles[1],
@@ -11434,6 +11525,7 @@ function fight(makeUp) {
 			game.stats.mapsCleared.value++;
 			checkAchieve("totalMaps");
 			mapObj.clears ++;
+			mapObj.totalTimeSpent += (getGameTime() - game.global.mapStarted)/1000;
 			var shouldRepeat = (game.global.repeatMap);
 			var mapBonusEarned = 0;
 			if ((currentMapObj.level >= (game.global.world - game.portal.Siphonology.level)) && game.global.mapBonus < 10) mapBonusEarned = 1;
@@ -11444,7 +11536,7 @@ function fight(makeUp) {
 			else if (game.options.menu.repeatUntil.enabled == 2 && allItemsEarned) shouldRepeat = false;
 			else if (game.options.menu.repeatUntil.enabled == 3 && allItemsEarned && (mapBonusReached || mapBonusEarned == 0)) shouldRepeat = false;
 			if (mapObj.bonus && mapSpecialModifierConfig[mapObj.bonus].onCompletion){
-				updateMapStats(mapSpecialModifierConfig[mapObj.bonus].onCompletion());
+				mapSpecialModifierConfig[mapObj.bonus].onCompletion();
 			}
 			var skip = false;
 			if (isVoid) {
@@ -12914,7 +13006,7 @@ function givePumpkimpLoot(){
 	if (game.global.mapsActive){
 		amt = scaleToCurrentMap(amt, true);
 	}
-	addResCheckMax(item, amt);
+	addResCheckMax(item, amt,null,'loot');
 	var messageNumber = Math.floor(Math.random() * success.length);
 	message(success[messageNumber] + prettify(amt) + " " + item + "!", "Loot", "*magic-wand", "pumpkimp", "events");
 }

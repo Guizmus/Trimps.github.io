@@ -1096,29 +1096,24 @@ var toReturn = {
 					    for (var mapIndex in game.global.mapsOwnedArray) {
 							game.global.mapsOwnedArray[mapIndex].stats = {
 									cacheRewards : [],
-									loot : [],
-									mediumRps : 0,
+									loot : [{}],
 							};
 					    }
 					}
-					switch (this.enabled) {
+				},
+				numToKeep: function() {
+					switch (game.options.menu['mapStatCount'].enabled) {
 						case 0 : 
-							game.settings.mapStatCount = 0;
-							break;
+							return 0;
 						case 1 : 
-							game.settings.mapStatCount = 1;
-							break;
+							return 1;
 						case 2 : 
-							game.settings.mapStatCount = 5;
-							break;
+							return 5;
 						case 3 : 
-							game.settings.mapStatCount = 10;
-							break;
+							return 10;
 						case 4 : 
-							game.settings.mapStatCount = 20;
-							break;
+							return 20;
 					}
-					// game.global.mapStatCount
 				}
 			}
 		}
@@ -5127,7 +5122,7 @@ var toReturn = {
 				var item = eligible[roll];
 				var amt = simpleSeconds(item, 45);
 				amt = scaleToCurrentMap(amt);
-				addResCheckMax(item, amt, null, null, true);
+				addResCheckMax(item, amt, null, 'loot', true);
 				message("That Jestimp gave you " + prettify(amt) + " " + item + "!", "Loot", "*dice", "exotic", "exotic");
 				game.unlocks.impCount.Jestimp++;
 			}
@@ -5167,7 +5162,7 @@ var toReturn = {
 					var item = eligible[x];
 					var amt = simpleSeconds(item, 5);
 					amt = scaleToCurrentMap(amt);
-					addResCheckMax(item, amt, null, null, true);
+					addResCheckMax(item, amt, null, 'loot', true);
 					cMessage += prettify(amt) + " " + item;
 					if (x == (eligible.length - 1)) cMessage += "!";
 					else if (x == (eligible.length - 2)) cMessage += ", and ";
@@ -5455,9 +5450,9 @@ var toReturn = {
 				return !game.portal.Relentlessness.locked;
 			},
 			fire: function(){
-				addResCheckMax("food", game.resources.food.owned);
-				addResCheckMax("wood", game.resources.wood.owned);
-				addResCheckMax("metal", game.resources.metal.owned);
+				addResCheckMax("food", game.resources.food.owned,null,'loot');
+				addResCheckMax("wood", game.resources.wood.owned,null,'loot');
+				addResCheckMax("metal", game.resources.metal.owned,null,'loot');
 				message("After barely escaping a fierce boulder, you check out the relic you found in there. It glows extremely bright for a few seconds before disappearing, and you look at your storages to see that your Food, Wood, and Metal have been doubled!", "Story", "piggy-bank", "highlightStoryMessage");
 			}
 

@@ -1687,14 +1687,32 @@ function getZoneStats(event, update) {
 		textString += ", Cell " + (game.global.lastClearedMapCell + 2) + "</td></tr>";
 		textString += '<tr><td><span class="' + getMapIcon(map) + '"></span> ' + ((map.location == "Void") ? voidBuffConfig[game.global.voidBuff].title : getMapIcon(map, true)) + '</td><td><span class="icomoon icon-gift2"></span>' + Math.floor(map.loot * 100) + '%</span> <span class="icomoon icon-cube2"></span>' + map.size + ' <span class="icon icon-warning"></span>' + Math.floor(map.difficulty * 100) + '%</td><td>' + ((map.location == "Void") ? '&nbsp' : ('Items: ' + addSpecials(true, true, map))) + '</td></tr>';
 		var timeSpent = (getGameTime() - game.global.mapStarted) / 1000;
+		textString += '<tr>' +
+				'<td>' + (timeSpent > 60 ? formatMinutesForDescriptions(timeSpent/60) : formatSecondsForDescriptions(timeSpent)) + '<br>spent this run</td>' +
+				'<td>' + formatMinutesForDescriptions(map.totalTimeSpent/60) + '<br>spent all runs</td>' +
+				'<td>' + map.clears + ' map clear' + (map.clears>1 ? 's' : '' ) + '</td>' +
+			'</tr>';
 		if (game.options.menu['mapStatCount'].enabled) {
-			textString += '<tr>' +
-					'<td>' + (timeSpent > 60 ? formatMinutesForDescriptions(timeSpent/60) : formatSecondsForDescriptions(timeSpent)) + ' spent</td>' +
-					'<td>' + map.clears + ' map clear' + (map.clears ? 's' : '' ) + '</td>' +
-					'<td>' + map.stats.mediumRps + ' res/s (' + game.settings.mapStatCount + ' runs)</td>' +
-				'</tr>';
-		} else {
-			textString += "<tr><td colspan='3'>You have been on this map for " + (timeSpent > 60 ? formatMinutesForDescriptions(timeSpent/60) : formatSecondsForDescriptions(timeSpent)) + ".<br/>You have cleared this map "+map.clears + " time" + (map.clears ? 's' : '' ) + "</td></tr>";
+			if (typeof(map.stats.computed) === "undefined")
+				computeMapStats();
+			
+			var stats = map.stats.computed;
+			textString += '<tr><td colspan=3><table class="bdTable table table-striped statTable">' +
+				'<tr><td>last '+stats.count+' run' + (stats.count>1 ? 's' : '' ) + '</td><td>' + stats.w.join('</td><td>') + '</td></tr>' + 
+				'<tr><td>Cache</td>';
+			for (var i in stats.w) {
+				textString += '<td>' + prettify(stats.cacheRewards[stats.w[i]] ? stats.cacheRewards[stats.w[i]] : 0) + '/s</td>';
+			}
+			textString += '</tr><tr><td>Loot</td>';
+			for (var i in stats.w) {
+				textString += '<td>' + prettify(stats.loot[stats.w[i]] ? stats.loot[stats.w[i]] : 0) + '/s</td>';
+			}
+			textString += '</tr><tr><td>Total</td>';
+			for (var i in stats.w) {
+				textString += '<td>' + prettify((stats.loot[stats.w[i]] ? stats.loot[stats.w[i]] : 0) + (stats.cacheRewards[stats.w[i]] ? stats.cacheRewards[stats.w[i]] : 0)) + '/s</td>';
+			}
+			textString += '</tr>';
+			textString += '</table></td></tr>';
 		}
 		var stackedMaps = 0;
 		if (Fluffy.isRewardActive('void')) stackedMaps = countStackedVoidMaps();
